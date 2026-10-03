@@ -534,7 +534,7 @@ describe('FragmentRefs', () => {
         await act(() => {
           fragmentRef.current.focus();
         });
-        expect(shadowRoot.activeElement.id).toEqual('child-b');
+        expect(shadowRoot.activeElement.id).toEqual('child-a');
         shadowRoot.activeElement.blur();
       });
     });
@@ -640,7 +640,7 @@ describe('FragmentRefs', () => {
         await act(() => {
           fragmentRef.current.focusLast();
         });
-        expect(shadowRoot.activeElement.id).toEqual('child-a');
+        expect(shadowRoot.activeElement.id).toEqual('child-b');
         shadowRoot.activeElement.blur();
       });
     });
