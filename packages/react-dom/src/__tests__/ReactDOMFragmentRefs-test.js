@@ -722,7 +722,7 @@ describe('FragmentRefs', () => {
         await act(() => {
           fragmentRef.current.blur();
         });
-        expect(shadowRoot.activeElement.id).toEqual('shadow-input');
+        expect(shadowRoot.activeElement).toBe(null);
       });
 
       it('does not remove focus from elements outside of the Fragment in a ShadowRoot', async () => {
@@ -792,7 +792,7 @@ describe('FragmentRefs', () => {
         await act(() => {
           fragmentRef.current.blur();
         });
-        expect(shadowRoot.activeElement.id).toEqual('shadow-child-input');
+        expect(shadowRoot.activeElement).toBe(null);
       });
 
       it('removes focus from a child portaled into a ShadowRoot', async () => {
@@ -826,7 +826,7 @@ describe('FragmentRefs', () => {
         await act(() => {
           fragmentRef.current.blur();
         });
-        expect(shadowRoot.activeElement.id).toEqual('portaled-shadow-input');
+        expect(shadowRoot.activeElement).toBe(null);
       });
 
       it('does not throw when the container is a detached DocumentFragment', async () => {
