@@ -124,7 +124,6 @@ import {
 import {
   enableCreateEventHandleAPI,
   enableScopeAPI,
-  enableTrustedTypesIntegration,
   disableLegacyMode,
   enableMoveBefore,
   disableCommentsAsDOMContainers,
@@ -133,8 +132,6 @@ import {
   enableViewTransition,
   enableHydrationChangeEvent,
   enableProfilerTimer,
-  enableFragmentRefsInstanceHandles,
-  enableFragmentRefsTextNodes,
 } from 'shared/ReactFeatureFlags';
 import {
   HostComponent,
@@ -576,7 +573,6 @@ export function createInstance(
           const div = ownerDocument.createElement('div');
           if (__DEV__) {
             if (
-              enableTrustedTypesIntegration &&
               !didWarnScriptTags &&
               // Data block scripts are not executed by UAs anyway so
               // we don't need to warn: https://html.spec.whatwg.org/multipage/scripting.html#attr-script-type
@@ -867,7 +863,7 @@ export function getInstanceFromScope(
 // -------------------
 //     Microtasks
 // -------------------
-export const supportsMicrotasks = true;
+export const supportsMicrotasks: boolean = true;
 export const scheduleMicrotask: any =
   typeof queueMicrotask === 'function'
     ? queueMicrotask
@@ -886,7 +882,7 @@ function handleErrorInNextTick(error: any) {
 //     Mutation
 // -------------------
 
-export const supportsMutation = true;
+export const supportsMutation: boolean = true;
 
 export function commitMount(
   domElement: Instance,
@@ -3284,11 +3280,9 @@ function setFocusOnFiberIfFocusable(
   fiber: Fiber,
   focusOptions?: FocusOptions,
 ): boolean {
-  if (enableFragmentRefsTextNodes) {
-    // Skip text nodes - they are not focusable
-    if (fiber.tag === HostText) {
-      return false;
-    }
+  // Skip text nodes - they are not focusable
+  if (fiber.tag === HostText) {
+    return false;
   }
   const instance = getInstanceFromHostFiber<Instance>(fiber);
   return setFocusIfFocusable(instance, focusOptions);
@@ -3330,7 +3324,7 @@ FragmentInstance.prototype.blur = function (this: FragmentInstanceType): void {
 };
 function blurActiveElementWithinFragment(child: Fiber): boolean {
   // Skip text nodes - they can't be focused
-  if (enableFragmentRefsTextNodes && child.tag === HostText) {
+  if (child.tag === HostText) {
     return false;
   }
   const instance = getInstanceFromHostFiber<Instance>(child);
@@ -3378,28 +3372,26 @@ FragmentInstance.prototype.observeUsing = function (
   observer: IntersectionObserver | ResizeObserver,
 ): void {
   if (__DEV__) {
-    if (enableFragmentRefsTextNodes) {
-      let hasText = false;
-      let hasElement = false;
-      traverseFragmentInstancesAndTextInstances(
-        this._fragmentFiber,
-        (child: Fiber) => {
-          if (child.tag === HostText) {
-            hasText = true;
-          } else {
-            // Stop traversal, found element
-            hasElement = true;
-            return true;
-          }
-          return false;
-        },
+    let hasText = false;
+    let hasElement = false;
+    traverseFragmentInstancesAndTextInstances(
+      this._fragmentFiber,
+      (child: Fiber) => {
+        if (child.tag === HostText) {
+          hasText = true;
+        } else {
+          // Stop traversal, found element
+          hasElement = true;
+          return true;
+        }
+        return false;
+      },
+    );
+    if (hasText && !hasElement) {
+      console.error(
+        'observeUsing() was called on a FragmentInstance with only text children. ' +
+          'Observers do not work on text nodes.',
       );
-      if (hasText && !hasElement) {
-        console.error(
-          'observeUsing() was called on a FragmentInstance with only text children. ' +
-            'Observers do not work on text nodes.',
-        );
-      }
     }
   }
   if (this._observers === null) {
@@ -3416,11 +3408,9 @@ function observeChild(
   child: Fiber,
   observer: IntersectionObserver | ResizeObserver,
 ) {
-  if (enableFragmentRefsTextNodes) {
-    // Skip text nodes - observers don't work on them
-    if (child.tag === HostText) {
-      return false;
-    }
+  // Skip text nodes - observers don't work on them
+  if (child.tag === HostText) {
+    return false;
   }
   const instance = getInstanceFromHostFiber<Instance>(child);
   observer.observe(instance);
@@ -3453,11 +3443,9 @@ function unobserveChild(
   child: Fiber,
   observer: IntersectionObserver | ResizeObserver,
 ) {
-  if (enableFragmentRefsTextNodes) {
-    // Skip text nodes - they were never observed
-    if (child.tag === HostText) {
-      return false;
-    }
+  // Skip text nodes - they were never observed
+  if (child.tag === HostText) {
+    return false;
   }
   const instance = getInstanceFromHostFiber<Instance>(child);
   observer.unobserve(instance);
@@ -3562,7 +3550,7 @@ FragmentInstance.prototype.getClientRects = function (
   return rects;
 };
 function collectClientRects(child: Fiber, rects: Array<DOMRect>): boolean {
-  if (enableFragmentRefsTextNodes && child.tag === HostText) {
+  if (child.tag === HostText) {
     const textNode: Text = child.stateNode;
     const range = textNode.ownerDocument.createRange();
     range.selectNodeContents(textNode);
@@ -3809,7 +3797,7 @@ FragmentInstance.prototype.scrollIntoView = function (
       return;
     }
     // For text node siblings, use Range API to scroll to their position
-    if (enableFragmentRefsTextNodes && targetFiber.tag === HostText) {
+    if (targetFiber.tag === HostText) {
       const textNode = getInstanceFromHostFiber<TextInstance>(targetFiber);
       scrollTextNodeIntoView(textNode, resolvedAlignToTop);
       return;
@@ -3849,7 +3837,7 @@ FragmentInstance.prototype.scrollIntoView = function (
   while (i !== (resolvedAlignToTop ? -1 : children.length)) {
     const child = children[i];
     // For text nodes, use Range API to scroll to their position
-    if (enableFragmentRefsTextNodes && child.tag === HostText) {
+    if (child.tag === HostText) {
       const textNode = getInstanceFromHostFiber<TextInstance>(child);
       scrollTextNodeIntoView(textNode, resolvedAlignToTop);
       i += resolvedAlignToTop ? -1 : 1;
@@ -3865,12 +3853,10 @@ function addFragmentHandleToFiber(
   child: Fiber,
   fragmentInstance: FragmentInstanceType,
 ): boolean {
-  if (enableFragmentRefsInstanceHandles) {
-    const instance = getInstanceFromHostFiber<Instance | TextInstance>(
-      child,
-    ) as any as HostNodeWithFragmentHandles;
-    addFragmentHandleToInstance(instance, fragmentInstance);
-  }
+  const instance = getInstanceFromHostFiber<Instance | TextInstance>(
+    child,
+  ) as any as HostNodeWithFragmentHandles;
+  addFragmentHandleToInstance(instance, fragmentInstance);
   return false;
 }
 
@@ -3878,25 +3864,21 @@ function addFragmentHandleToInstance(
   instance: HostNodeWithFragmentHandles,
   fragmentInstance: FragmentInstanceType,
 ): void {
-  if (enableFragmentRefsInstanceHandles) {
-    if (instance.reactFragments == null) {
-      instance.reactFragments = new Set();
-    }
-    instance.reactFragments.add(fragmentInstance);
+  if (instance.reactFragments == null) {
+    instance.reactFragments = new Set();
   }
+  instance.reactFragments.add(fragmentInstance);
 }
 
 export function createFragmentInstance(
   fragmentFiber: Fiber,
 ): FragmentInstanceType {
   const fragmentInstance = new (FragmentInstance as any)(fragmentFiber);
-  if (enableFragmentRefsInstanceHandles) {
-    traverseFragmentInstancesAndTextInstances(
-      fragmentFiber,
-      addFragmentHandleToFiber,
-      fragmentInstance,
-    );
-  }
+  traverseFragmentInstancesAndTextInstances(
+    fragmentFiber,
+    addFragmentHandleToFiber,
+    fragmentInstance,
+  );
   return fragmentInstance;
 }
 
@@ -3934,9 +3916,7 @@ export function commitNewChildToFragmentInstance(
       observer.observe(instance);
     });
   }
-  if (enableFragmentRefsInstanceHandles) {
-    addFragmentHandleToInstance(instance, fragmentInstance);
-  }
+  addFragmentHandleToInstance(instance, fragmentInstance);
 }
 
 export function deleteChildFromFragmentInstance(
@@ -3974,10 +3954,8 @@ export function deleteChildFromFragmentInstance(
       }
     });
   }
-  if (enableFragmentRefsInstanceHandles) {
-    if (instance.reactFragments != null) {
-      instance.reactFragments.delete(fragmentInstance);
-    }
+  if (instance.reactFragments != null) {
+    instance.reactFragments.delete(fragmentInstance);
   }
 }
 
@@ -4089,7 +4067,7 @@ export function bindInstance(
 //     Hydration
 // -------------------
 
-export const supportsHydration = true;
+export const supportsHydration: boolean = true;
 
 export function canHydrateInstance(
   instance: HydratableInstance,
@@ -4786,7 +4764,7 @@ export function shouldDeleteUnhydratedTailInstances(
 //     Test Selectors
 // -------------------
 
-export const supportsTestSelectors = true;
+export const supportsTestSelectors: boolean = true;
 
 export function findFiberRoot(node: Instance): null | FiberRoot {
   const stack = [node];
@@ -4953,7 +4931,7 @@ export function requestPostPaintCallback(callback: (time: number) => void) {
 //     Singletons
 // -------------------
 
-export const supportsSingletons = true;
+export const supportsSingletons: boolean = true;
 
 export function isHostSingletonType(type: string): boolean {
   return type === 'html' || type === 'head' || type === 'body';
@@ -5113,7 +5091,7 @@ function clearSingletonPreambleContribution(instance: Instance): void {
 //     Resources
 // -------------------
 
-export const supportsResources = true;
+export const supportsResources: boolean = true;
 
 type HoistableTagType = 'link' | 'meta' | 'title';
 type TResource<
